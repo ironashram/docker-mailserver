@@ -1,13 +1,27 @@
-# Docker Mailserver
+# Docker Mailserver (ironashram fork)
 
-[![ci::status]][ci::github] [![docker::pulls]][docker::hub] [![documentation::badge]][documentation::web]
+[![ci::status]][ci::github] [![documentation::badge]][documentation::web]
 
-[ci::status]: https://img.shields.io/github/actions/workflow/status/docker-mailserver/docker-mailserver/default_on_push.yml?branch=master&color=blue&label=CI&logo=github&logoColor=white&style=for-the-badge
-[ci::github]: https://github.com/docker-mailserver/docker-mailserver/actions
-[docker::pulls]: https://img.shields.io/docker/pulls/mailserver/docker-mailserver.svg?style=for-the-badge&logo=docker&logoColor=white&color=blue
-[docker::hub]: https://hub.docker.com/r/mailserver/docker-mailserver/
+[ci::status]: https://img.shields.io/github/actions/workflow/status/ironashram/docker-mailserver/default_on_push.yml?branch=master&color=blue&label=CI&logo=github&logoColor=white&style=for-the-badge
+[ci::github]: https://github.com/ironashram/docker-mailserver/actions
 [documentation::badge]: https://img.shields.io/badge/DOCUMENTATION-GH%20PAGES-0078D4?style=for-the-badge&logo=googledocs&logoColor=white
 [documentation::web]: https://docker-mailserver.github.io/docker-mailserver/latest/
+
+This is a hard fork of
+[docker-mailserver/docker-mailserver](https://github.com/docker-mailserver/docker-mailserver).
+It has diverged deliberately and no longer tracks upstream. Reasons:
+
+- Upstream's release cadence stalled (last release August 2025) while the base image
+  stayed on Debian 12, which left regular security support in July 2026.
+- This fork merged upstream's completed but unmerged Debian 13 + Dovecot 2.4 migration
+  branch (upstream PR #4536) and builds on trixie.
+- Images publish to `ghcr.io/ironashram/docker-mailserver` (`:edge`), amd64 only.
+  A weekly scheduled rebuild pulls current Debian packages, and publishing is gated on
+  the full test suite passing.
+- CI is self-contained: local reusable workflows, all actions pinned by commit SHA,
+  no DockerHub publishing, docs deploy and stale bot workflows removed.
+- Maintained for personal infrastructure. Features beyond what the maintainer runs
+  are still present but untested here - upstream's documentation still describes them.
 
 ## :page_with_curl: About
 
