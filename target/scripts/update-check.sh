@@ -4,8 +4,8 @@
 source /usr/local/bin/helpers/log.sh
 
 VERSION="${DMS_RELEASE#v}"
-VERSION_URL='https://github.com/docker-mailserver/docker-mailserver/releases/latest'
-CHANGELOG_URL='https://github.com/docker-mailserver/docker-mailserver/blob/master/CHANGELOG.md'
+VERSION_URL='https://github.com/ironashram/docker-mailserver/releases/latest'
+CHANGELOG_URL='https://github.com/ironashram/docker-mailserver/releases'
 
 # check for correct syntax
 # number + suffix. suffix must be 's' for seconds, 'm' for minutes, 'h' for hours or 'd' for days.
