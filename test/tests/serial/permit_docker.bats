@@ -70,7 +70,9 @@ teardown_file() {
   # we should be able to send from the other container on the second network!
   run docker exec mail_smtponly_second_network_sender /bin/sh -c "while read -r LINE; do sleep 0.5s; echo \"\${LINE}\"; done < /tmp/docker-mailserver-test/emails/nc_raw/smtp-only.txt | nc mail_smtponly_second_network 25"
   assert_output --partial "250 2.0.0 Ok: queued as "
-  repeat_in_container_until_success_or_timeout 60 mail_smtponly_second_network /bin/sh -c 'grep -cE "to=<user2\@external.tld>.*status\=sent" /var/log/mail/mail.log'
+  # The relayed mail cannot actually deliver to the fake external.tld domain, a
+  # delivery attempt in the log is proof the relay was permitted (not rejected):
+  repeat_in_container_until_success_or_timeout 60 mail_smtponly_second_network /bin/sh -c 'grep -cE "to=<user2\@external.tld>" /var/log/mail/mail.log'
 }
 
 @test "checking PERMIT_DOCKER: none" {

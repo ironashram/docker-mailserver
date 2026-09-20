@@ -87,8 +87,10 @@ function _install_packages() {
 
   local MISCELLANEOUS_PACKAGES=(
     binutils bsd-mailx
-    dumb-init iproute2
+    dumb-init file iproute2
     libdate-manip-perl
+    # Perl TLS support for swaks:
+    libio-socket-ssl-perl libnet-ssleay-perl
     locales logrotate logwatch netcat-openbsd
     nftables # primarily for Fail2Ban
     rsyslog supervisor

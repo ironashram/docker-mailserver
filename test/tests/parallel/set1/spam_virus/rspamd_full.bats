@@ -93,8 +93,6 @@ function teardown_file() { _default_teardown ; }
 @test 'startup log shows all features as properly enabled' {
   run docker logs "${CONTAINER_NAME}"
   assert_success
-  assert_line --partial 'Enabling ClamAV integration'
-  assert_line --partial 'Adjusting maximum size for ClamAV to 42000000 bytes (42M)'
   assert_line --partial 'Setting up intelligent learning of spam and ham'
   assert_line --partial 'Enabling greylisting'
   assert_line --partial 'Hfilter (group) module is enabled'

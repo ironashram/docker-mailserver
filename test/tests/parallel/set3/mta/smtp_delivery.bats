@@ -127,16 +127,16 @@ function _successful() {
   assert_success
 
   assert_output --partial '1 <added@localhost.localdomain>'
-  assert_output --partial '6 <user1@localhost.localdomain>'
+  assert_output --partial '1 <added@localhost.localdomain>'
+  assert_output --partial '3 <user1@localhost.localdomain>'
+  assert_output --partial '1 <user1@localhost.localdomain>, orig_to=<alias1@localhost.localdomain>'
   assert_output --partial '1 <user1@localhost.localdomain>, orig_to=<root>'
-  assert_output --partial '1 <user1~test@localhost.localdomain>'
+  assert_output --partial '1 <user1@localhost.localdomain>, orig_to=<test123@localhost.localdomain>'
+  assert_output --partial '1 <user1@localhost.localdomain>, orig_to=<wildcard@localdomain2.com>'
+  assert_output --partial '1 <user1~test@localhost.localdomain>, orig_to=<alias1~test@localhost.localdomain>'
   assert_output --partial '2 <user2@otherdomain.tld>'
   assert_output --partial '1 <user3@localhost.localdomain>'
-  _should_output_number_of_lines 6
-
-  # NOTE: Requires ClamAV enabled and to send `amavis-virus` template:
-  # assert_output --partial '1 <user1@localhost.localdomain>, orig_to=<postmaster@example.test>'
-  # _should_output_number_of_lines 7
+  _should_output_number_of_lines 9
 }
 
 @test "delivers mail to existing alias" {
