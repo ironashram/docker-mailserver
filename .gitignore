@@ -1,0 +1,10 @@
+.env
+compose.override.yaml
+docker-data/
+
+.idea/
+.vscode/
+
+test/duplicate_configs/
+test/config/dovecot-masters.cf
+test/config/postfix-accounts.cf

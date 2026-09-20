@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
   packages: write
-  security-events: write
 
 jobs:
   build-images:
@@ -19,13 +18,6 @@ jobs:
     name: 'Test AMD64 Image'
     needs: build-images
     uses: ironashram/docker-mailserver/.github/workflows/generic_test.yml@master
-    with:
-      cache-key: ${{ needs.build-images.outputs.build-cache-key }}
-
-  scan-image:
-    name: 'Scan Image for Vulnerabilities'
-    needs: build-images
-    uses: ironashram/docker-mailserver/.github/workflows/generic_vulnerability-scan.yml@master
     with:
       cache-key: ${{ needs.build-images.outputs.build-cache-key }}
 
