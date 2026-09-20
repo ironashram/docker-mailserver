@@ -63,8 +63,6 @@ ${RED}[${ORANGE}SUB${RED}]${ORANGE}COMMANDS${RESET}
         setup fail2ban ${CYAN}status${RESET}
 
     ${LBLUE}COMMAND${RESET} debug ${RED}:=${RESET}
-        setup debug ${CYAN}fetchmail${RESET}
-        setup debug ${CYAN}getmail${RESET}
         setup debug ${CYAN}login${RESET} <COMMANDS>
         setup debug ${CYAN}show-mail-logs${RESET}
 
@@ -75,7 +73,6 @@ ${ORANGE}EXAMPLES${RESET}
 
     ${LWHITE}setup config dkim keysize 2048 domain 'example.com,not-example.com'${RESET}
         Creates keys of length 2048 for the domains in comma-separated list.
-        This is necessary when using LDAP as the required domains cannot be inferred.
 
     ${LWHITE}setup config dkim help${RESET}
         This will provide you with a detailed explanation on how to use the ${LWHITE}
@@ -132,7 +129,7 @@ function _main() {
 
     ( config )
       case ${2:-} in
-        ( dkim     ) shift 2 ; open-dkim "${@}" ;;
+        ( dkim     ) shift 2 ; rspamd-dkim "${@}" ;;
         ( *        ) _invalid_command "${@}" ;;
       esac
       ;;
@@ -150,8 +147,6 @@ function _main() {
 
     ( debug )
       case ${2:-} in
-        ( fetchmail      ) debug-fetchmail ;;
-        ( getmail        ) debug-getmail ;;
         ( show-mail-logs ) cat /var/log/mail/mail.log ;;
         ( login          )
           shift 2

@@ -59,10 +59,6 @@ function _register_functions() {
       _register_setup_function '_setup_dovecot_local_user'
       ;;
 
-    ( 'LDAP' )
-      _register_setup_function '_setup_ldap'
-      ;;
-
     ( 'OIDC' )
       _dms_panic__fail_init 'OIDC user account provisioning - it is not yet implemented'
       ;;
@@ -72,14 +68,7 @@ function _register_functions() {
       ;;
   esac
 
-  [[ ${ENABLE_OAUTH2} -eq 1 ]] && _register_setup_function '_setup_oauth2'
-  [[ ${ENABLE_SASLAUTHD} -eq 1 ]] && _register_setup_function '_setup_saslauthd'
-
   _register_setup_function '_setup_dovecot_inet_protocols'
-
-  _register_setup_function '_setup_opendkim'
-  _register_setup_function '_setup_opendmarc' # must come after `_setup_opendkim`
-  _register_setup_function '_setup_policyd_spf'
 
   _register_setup_function '_setup_security_stack'
   _register_setup_function '_setup_rspamd'
@@ -96,26 +85,12 @@ function _register_functions() {
 
   _register_setup_function '_setup_postfix_late'
 
-  if [[ ${ENABLE_SRS} -eq 1  ]]; then
-    _register_setup_function '_setup_SRS'
-    _register_start_daemon '_start_daemon_postsrsd'
-  fi
-
-  _register_setup_function '_setup_fetchmail'
-  _register_setup_function '_setup_fetchmail_parallel'
-  _register_setup_function '_setup_getmail'
-
   _register_setup_function '_setup_logrotate'
   _register_setup_function '_setup_mail_summary'
   _register_setup_function '_setup_logwatch'
 
   _register_setup_function '_setup_save_states'
   _register_setup_function '_setup_adjust_state_permissions'
-
-  if [[ ${ENABLE_MTA_STS} -eq 1 ]]; then
-    _register_setup_function '_setup_mta_sts'
-    _register_start_daemon '_start_daemon_mta_sts_daemon'
-  fi
 
   # ! The following functions must be executed after all other setup functions
   _register_setup_function '_setup_directory_and_file_permissions'
@@ -140,22 +115,10 @@ function _register_functions() {
   [[ ${ENABLE_RSPAMD_REDIS}     -eq 1 ]] && _register_start_daemon '_start_daemon_rspamd_redis'
   [[ ${ENABLE_RSPAMD}           -eq 1 ]] && _register_start_daemon '_start_daemon_rspamd'
 
-  # needs to be started before SASLauthd
-  [[ ${ENABLE_OPENDKIM}         -eq 1 ]] && _register_start_daemon '_start_daemon_opendkim'
-  [[ ${ENABLE_OPENDMARC}        -eq 1 ]] && _register_start_daemon '_start_daemon_opendmarc'
-
-  # needs to be started before postfix
-  [[ ${ENABLE_POSTGREY}         -eq 1 ]] &&	_register_start_daemon '_start_daemon_postgrey'
-
   _register_start_daemon '_start_daemon_postfix'
 
   # needs to be started after postfix
-  [[ ${ENABLE_SASLAUTHD}        -eq 1 ]] && _register_start_daemon '_start_daemon_saslauthd'
   [[ ${ENABLE_FAIL2BAN}         -eq 1 ]] &&	_register_start_daemon '_start_daemon_fail2ban'
-  [[ ${ENABLE_FETCHMAIL}        -eq 1 ]] && _register_start_daemon '_start_daemon_fetchmail'
-  [[ ${ENABLE_CLAMAV}           -eq 1 ]] &&	_register_start_daemon '_start_daemon_clamav'
-  [[ ${ENABLE_AMAVIS}           -eq 1 ]] && _register_start_daemon '_start_daemon_amavis'
-  [[ ${ENABLE_GETMAIL}          -eq 1 ]] && _register_start_daemon '_start_daemon_getmail'
   _register_start_daemon '_start_daemon_changedetector'
 }
 

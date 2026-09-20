@@ -15,7 +15,6 @@ function _setup_rspamd() {
     __rspamd__setup_logfile
     __rspamd__setup_redis
     __rspamd__setup_postfix
-    __rspamd__setup_clamav
     __rspamd__setup_default_modules
     __rspamd__setup_learning
     __rspamd__setup_greylisting
@@ -81,25 +80,6 @@ function __rspamd__run_early_setup_and_checks() {
     cp "${RSPAMD_DMS_OVERRIDE_D}/"* "${RSPAMD_OVERRIDE_D}"
   fi
 
-  if [[ ${ENABLE_AMAVIS} -eq 1 ]] || [[ ${ENABLE_SPAMASSASSIN} -eq 1 ]]; then
-    __rspamd__log 'warn' 'Running Amavis/SA & Rspamd at the same time is discouraged'
-  fi
-
-  if [[ ${ENABLE_OPENDKIM} -eq 1 ]]; then
-    __rspamd__log 'warn' 'Running OpenDKIM & Rspamd at the same time is discouraged - we recommend Rspamd for DKIM checks (enabled with Rspamd by default) & signing'
-  fi
-
-  if [[ ${ENABLE_OPENDMARC} -eq 1 ]]; then
-    __rspamd__log 'warn' 'Running OpenDMARC & Rspamd at the same time is discouraged - we recommend Rspamd for DMARC checks (enabled with Rspamd by default)'
-  fi
-
-  if [[ ${ENABLE_POLICYD_SPF} -eq 1 ]]; then
-    __rspamd__log 'warn' 'Running policyd-spf & Rspamd at the same time is discouraged - we recommend Rspamd for SPF checks (enabled with Rspamd by default)'
-  fi
-
-  if [[ ${ENABLE_POSTGREY} -eq 1 ]] && [[ ${RSPAMD_GREYLISTING} -eq 1 ]]; then
-    __rspamd__log 'warn' 'Running Postgrey & Rspamd at the same time is discouraged - we recommend Rspamd for greylisting'
-  fi
 }
 
 # Keep in sync with `target/scripts/startup/setup.d/log.sh:_setup_logrotate()`
@@ -162,25 +142,6 @@ function __rspamd__setup_postfix() {
   postconf 'rspamd_milter = inet:localhost:11332'
   # shellcheck disable=SC2016
   _add_to_or_update_postfix_main 'smtpd_milters' '$rspamd_milter'
-}
-
-# If ClamAV is enabled, we will integrate it into Rspamd.
-function __rspamd__setup_clamav() {
-  if _env_var_expect_zero_or_one 'ENABLE_CLAMAV' && [[ ${ENABLE_CLAMAV} -eq 1 ]]; then
-    __rspamd__log 'debug' 'Enabling ClamAV integration'
-    sedfile -i -E 's|^(enabled).*|\1 = true;|g' "${RSPAMD_LOCAL_D}/antivirus.conf"
-    # Rspamd uses ClamAV's UNIX socket, and to be able to read it, it must be in the same group
-    usermod -a -G clamav _rspamd
-
-    if [[ ${CLAMAV_MESSAGE_SIZE_LIMIT} != '25M' ]]; then
-      local SIZE_IN_BYTES
-      SIZE_IN_BYTES=$(numfmt --from=si "${CLAMAV_MESSAGE_SIZE_LIMIT}")
-      __rspamd__log 'trace' "Adjusting maximum size for ClamAV to ${SIZE_IN_BYTES} bytes (${CLAMAV_MESSAGE_SIZE_LIMIT})"
-      sedfile -i -E "s|(.*max_size =).*|\1 ${SIZE_IN_BYTES};|" "${RSPAMD_LOCAL_D}/antivirus.conf"
-    fi
-  else
-    __rspamd__log 'debug' 'Rspamd will not use ClamAV (which has not been enabled)'
-  fi
 }
 
 # Disables certain modules by default. This can be overwritten by the user later.

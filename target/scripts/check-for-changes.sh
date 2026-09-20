@@ -79,7 +79,6 @@ function _handle_changes() {
 
   _log 'debug' 'Reloading services due to detected changes'
 
-  [[ ${ENABLE_AMAVIS} -eq 1 ]] && _reload_amavis
   _reload_postfix
   [[ ${SMTP_ONLY} -ne 1 ]] && dovecot reload
 }
@@ -99,13 +98,6 @@ function _get_changed_files() {
   grep -Fxvf "${CHKSUM_CURRENT}" "${CHKSUM_NEW}" | sed -r 's/^\S+[[:space:]]+//'
 }
 
-function _reload_amavis() {
-  # /etc/postfix/vhost was updated, amavis must refresh it's config by
-  # reading this file again in case of new domains, otherwise they will be ignored.
-  if [[ ${VHOST_UPDATED} -eq 1 ]]; then
-    amavisd reload
-  fi
-}
 
 # Also note that changes are performed in place and are not atomic
 # We should fix that and write to temporary files, stop, swap and start

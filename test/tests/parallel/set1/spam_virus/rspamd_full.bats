@@ -12,15 +12,7 @@ function setup_file() {
   # Comment for maintainers about `PERMIT_DOCKER=host`:
   # https://github.com/docker-mailserver/docker-mailserver/pull/2815/files#r991087509
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_AMAVIS=0
-    --env ENABLE_SPAMASSASSIN=0
-    --env ENABLE_CLAMAV=1
     --env ENABLE_RSPAMD=1
-    --env ENABLE_OPENDKIM=0
-    --env ENABLE_OPENDMARC=0
-    --env ENABLE_POLICYD_SPF=0
-    --env ENABLE_POSTGREY=0
-    --env CLAMAV_MESSAGE_SIZE_LIMIT=42M
     --env PERMIT_DOCKER=host
     --env LOG_LEVEL=trace
     --env MOVE_SPAM_TO_JUNK=1
@@ -35,13 +27,9 @@ function setup_file() {
   cp -r "${TEST_TMP_CONFIG}"/rspamd_full/* "${TEST_TMP_CONFIG}/"
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
 
-  # wait for ClamAV to be fully setup or we will get errors on the log
-  _repeat_in_container_until_success_or_timeout 60 "${CONTAINER_NAME}" test -e /var/run/clamav/clamd.ctl
-
   _wait_for_service rspamd-redis
   _wait_for_service rspamd
   _wait_for_rspamd_port_in_container
-  _wait_for_service clamav
   _wait_for_service postfix
   _wait_for_smtp_port_in_container
 
@@ -53,10 +41,6 @@ function setup_file() {
     --body 'AJS*C4JDBQADN1.NSBN3*2IDNEN*GTUBE-STANDARD-ANTI-UBE-TEST-EMAIL*C.34X'
   #   3. The third one should be rejected (Rspamd-specific GTUBE pattern for rejection)
   _send_spam --expect-rejection
-  #   4. The fourth one should be rejected due to a virus (ClamAV EICAR pattern)
-  # shellcheck disable=SC2016
-  _send_email_with_msgid 'rspamd-test-email-virus' --expect-rejection \
-    --body 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
   #   5. The fifth one will receive an added header (Rspamd-specific GTUBE pattern for adding a spam header)
   #      ref: https://rspamd.com/doc/other/gtube_patterns.html
   _send_email_with_msgid 'rspamd-test-email-header' \
@@ -130,11 +114,6 @@ function teardown_file() { _default_teardown ; }
   _service_log_should_contain_string 'rspamd' 'lua module metric_exporter is disabled in the configuration'
 }
 
-@test 'antivirus maximum size was adjusted' {
-  _run_in_container grep 'max_size = 42000000' /etc/rspamd/local.d/antivirus.conf
-  assert_success
-}
-
 @test 'normal mail passes fine' {
   _service_log_should_contain_string 'rspamd' 'F (no action)'
   _service_log_should_contain_string 'rspamd' 'S (no action)'
@@ -154,19 +133,6 @@ function teardown_file() { _default_teardown ; }
   _print_mail_log_of_queue_id_from_msgid 'dms-test-email-spam'
   assert_output --partial 'milter-reject'
   assert_output --partial '5.7.1 Gtube pattern'
-
-  _print_mail_log_for_msgid 'dms-test-email-spam'
-  refute_output --partial 'saved mail to INBOX'
-  assert_failure
-}
-
-@test 'detects and rejects virus' {
-  _service_log_should_contain_string 'rspamd' 'T (reject)'
-  _service_log_should_contain_string 'rspamd' 'reject "ClamAV FOUND VIRUS "Eicar-Signature"'
-
-  _print_mail_log_of_queue_id_from_msgid 'rspamd-test-email-virus'
-  assert_output --partial 'milter-reject'
-  assert_output --partial '5.7.1 ClamAV FOUND VIRUS "Eicar-Signature"'
 
   _print_mail_log_for_msgid 'dms-test-email-spam'
   refute_output --partial 'saved mail to INBOX'

@@ -25,7 +25,6 @@ function _create_accounts() {
     chown dovecot:dovecot "${DOVECOT_USERDB_FILE}"
     chmod 640 "${DOVECOT_USERDB_FILE}"
 
-    sed -i -e '/\!include auth-ldap\.conf\.ext/s/^/#/' /etc/dovecot/conf.d/10-auth.conf
     sed -i -e '/\!include auth-passwdfile\.inc/s/^#//' /etc/dovecot/conf.d/10-auth.conf
 
     # creating users ; 'pass' is encrypted

@@ -19,19 +19,8 @@ function _setup_postfix_early() {
     postconf "inet_protocols = ${POSTFIX_INET_PROTOCOLS}"
   fi
 
-  __postfix__log 'trace' "Configuring SASLauthd"
-  if [[ ${ENABLE_SASLAUTHD} -eq 1 ]] && [[ ! -f /etc/sasl2/smtpd.conf ]]; then
-    mkdir -p /etc/sasl2
-    cat >/etc/sasl2/smtpd.conf << EOF
-pwcheck_method: saslauthd
-mech_list: plain login
-EOF
-  fi
-
-  # User has explicitly requested to disable SASL auth:
-  # TODO: Additive config by feature would be better. Should only enable SASL auth
-  # on submission(s) services in master.cf when SASLAuthd or Dovecot is enabled.
-  if [[ ${ENABLE_SASLAUTHD} -eq 0 ]] && [[ ${SMTP_ONLY} -eq 1 ]]; then
+  # SASL auth is only needed on submission(s) services in master.cf:
+  if [[ ${SMTP_ONLY} -eq 1 ]]; then
     # Default for services (eg: Port 25); NOTE: This has since become the default:
     sed -i -E \
       's|^smtpd_sasl_auth_enable =.*|smtpd_sasl_auth_enable = no|g' \
@@ -145,41 +134,3 @@ function __postfix__setup_override_configuration() {
   fi
 }
 
-function _setup_SRS() {
-  _log 'debug' 'Setting up SRS'
-
-  postconf 'sender_canonical_maps = tcp:localhost:10001'
-  postconf "sender_canonical_classes = ${SRS_SENDER_CLASSES}"
-  postconf 'recipient_canonical_maps = tcp:localhost:10002'
-  postconf 'recipient_canonical_classes = envelope_recipient,header_recipient'
-
-  function __generate_secret() {
-    (
-      umask 0077
-      dd if=/dev/urandom bs=24 count=1 2>/dev/null | base64 -w0 >"${1}"
-    )
-  }
-
-  local POSTSRSD_SECRET_FILE
-
-  sed -i "s/localdomain/${SRS_DOMAINNAME}/g" /etc/default/postsrsd
-
-  POSTSRSD_SECRET_FILE='/etc/postsrsd.secret'
-
-  if [[ -n ${SRS_SECRET} ]]; then
-    (
-      umask 0077
-      echo "${SRS_SECRET}" | tr ',' '\n' >"${POSTSRSD_SECRET_FILE}"
-    )
-  else
-    if [[ ! -f ${POSTSRSD_SECRET_FILE} ]]; then
-      __generate_secret "${POSTSRSD_SECRET_FILE}"
-    fi
-  fi
-
-  if [[ -n ${SRS_EXCLUDE_DOMAINS} ]]; then
-    sedfile -i -E \
-      "s|^#?(SRS_EXCLUDE_DOMAINS=).*|\1${SRS_EXCLUDE_DOMAINS}|" \
-      /etc/default/postsrsd
-  fi
-}

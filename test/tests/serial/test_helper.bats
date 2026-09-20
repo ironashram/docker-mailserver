@@ -145,7 +145,7 @@ BATS_TEST_NAME_PREFIX='test helper functions:'
   teardown() { docker rm -f "${CONTAINER_NAME}"; }
 
   # pick a service that was not started
-  ! container_has_service_running "${CONTAINER_NAME}" clamav
+  ! container_has_service_running "${CONTAINER_NAME}" rspamd
 
   # wait for a service that should be started
   wait_for_service "${CONTAINER_NAME}" postfix
@@ -160,63 +160,3 @@ BATS_TEST_NAME_PREFIX='test helper functions:'
   assert_failure
 }
 
-# TODO investigate why this test fails
-@test "wait_for_empty_mail_queue_in_container fails when timeout reached" {
-  skip 'disabled as it fails randomly: https://github.com/docker-mailserver/docker-mailserver/pull/2177'
-
-  local PRIVATE_CONFIG
-  PRIVATE_CONFIG=$(duplicate_config_for_container .)
-
-  # variable not local to make visible to teardown
-  # enable ClamAV to make message delivery slower, so we can detect it
-  CONTAINER_NAME=$(docker run -d --rm \
-    -v "${PRIVATE_CONFIG}":/tmp/docker-mailserver \
-    -v "$(pwd)/test/files":/tmp/docker-mailserver-test:ro \
-    -e ENABLE_CLAMAV=1 \
-    -h mail.my-domain.com \
-    -t "${NAME}")
-
-  teardown() { docker rm -f "${CONTAINER_NAME}"; }
-
-  wait_for_smtp_port_in_container "${CONTAINER_NAME}" || docker logs "${CONTAINER_NAME}"
-
-  SECONDS=0
-  # no mails -> should return immediately
-  TEST_TIMEOUT_IN_SECONDS=5 wait_for_empty_mail_queue_in_container "${CONTAINER_NAME}"
-  [[ ${SECONDS} -lt 5 ]]
-
-  # fill the queue with a message
-  docker exec "${CONTAINER_NAME}" /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/emails/amavis-virus.txt"
-
-  # that should still be stuck in the queue
-  ! TEST_TIMEOUT_IN_SECONDS=0 wait_for_empty_mail_queue_in_container "${CONTAINER_NAME}"
-}
-
-# TODO investigate why this test fails
-@test "wait_for_empty_mail_queue_in_container succeeds within timeout" {
-  skip 'disabled as it fails randomly: https://github.com/docker-mailserver/docker-mailserver/pull/2177'
-
-  local PRIVATE_CONFIG
-  PRIVATE_CONFIG=$(duplicate_config_for_container .)
-
-  # variable not local to make visible to teardown
-  # enable ClamAV to make message delivery slower, so we can detect it
-  CONTAINER_NAME=$(docker run -d --rm \
-    -v "${PRIVATE_CONFIG}":/tmp/docker-mailserver \
-    -v "$(pwd)/test/files":/tmp/docker-mailserver-test:ro \
-    -e ENABLE_CLAMAV=1 \
-    -h mail.my-domain.com \
-    -t "${NAME}")
-
-  teardown() { docker rm -f "${CONTAINER_NAME}"; }
-
-  wait_for_smtp_port_in_container "${CONTAINER_NAME}" || docker logs "${CONTAINER_NAME}"
-
-  # fill the queue with a message
-  docker exec "${CONTAINER_NAME}" /bin/sh -c "nc 0.0.0.0 25 < /tmp/docker-mailserver-test/emails/amavis-virus.txt"
-
-  # give it some time to clear the queue
-  SECONDS=0
-  wait_for_empty_mail_queue_in_container "${CONTAINER_NAME}"
-  [[ ${SECONDS} -gt 0 ]]
-}

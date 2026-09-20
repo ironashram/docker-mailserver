@@ -18,27 +18,6 @@ function setup_file() {
     # NOTE: Authentication is rejected due to default POSTSCREEN_ACTION=enforce and PERMIT_DOCKER=none
     # Non-issue when PERMIT_DOCKER is not the default `none` for these nc 0.0.0.0 tests:
     # --env POSTSCREEN_ACTION=ignore
-
-    # Required for test 'rejects spam':
-    --env ENABLE_SPAMASSASSIN=1
-    --env SPAMASSASSIN_SPAM_TO_INBOX=0
-    # Either SA_TAG or ENABLE_SRS=1 will pass the spamassassin X-SPAM headers test case:
-    --env SA_TAG=-5.0
-
-    # Only relevant for tests expecting to match `external.tld=`?:
-    # NOTE: Disabling support in tests as it doesn't seem relevant to the test, but misleading..
-    # `spam@external.tld` and `user@external.tld` are delivered with with the domain-part changed to `example.test`
-    # https://github.com/roehling/postsrsd
-    # --env ENABLE_SRS=1
-    # Required for ENABLE_SRS=1:
-    # --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
-
-    # Required for tests: 'redirects mail to external aliases' + 'rejects spam':
-    --env ENABLE_AMAVIS=1
-
-    # TODO: Relocate relevant tests to the separated clamav test file:
-    # Originally relevant, but tests expecting ClamAV weren't properly implemented and didn't raise a failure.
-    # --env ENABLE_CLAMAV=1
   )
 
   # Required for 'delivers mail to existing alias with recipient delimiter':
@@ -51,19 +30,9 @@ function setup_file() {
   assert_success
   _wait_until_change_detection_event_completes
 
-  # Even if the Amavis port is reachable at this point, it may still refuse connections?
-  _wait_for_tcp_port_in_container 10024
   _wait_for_smtp_port_in_container_to_respond
 
-  # see https://github.com/docker-mailserver/docker-mailserver/pull/3105#issuecomment-1441055103
-  # Amavis may still not be ready to receive mail, sleep a little to avoid connection failures:
-  sleep 5
-
   ### Send mail to queue for delivery ###
-
-  # TODO: Move to clamav tests (For use when ClamAV is enabled):
-  # _repeat_in_container_until_success_or_timeout 60 "${CONTAINER_NAME}" test -e /var/run/clamav/clamd.ctl
-  # _send_email --from 'virus@external.tld' --data 'amavis/virus.txt'
 
   # Required for 'delivers mail to existing alias':
   _send_email --to alias1@localhost.localdomain --header "Subject: Test Message existing-alias-external"
@@ -80,8 +49,6 @@ function setup_file() {
   # Required for 'redirects mail to external aliases':
   _send_email --to bounce-always@localhost.localdomain
   _send_email --to alias2@localhost.localdomain
-  # Required for 'rejects spam':
-  _send_spam
 
   # Required for 'delivers mail to existing account':
   _send_email --header 'Subject: Test Message existing-user1'
@@ -113,7 +80,6 @@ function _successful() {
 @test "should succeed at emptying mail queue" {
   # Try catch errors preventing emptying the queue ahead of waiting:
   _run_in_container mailq
-  # Amavis (Port 10024) may not have been ready when first mail was sent:
   refute_output --partial 'Connection refused'
   refute_output --partial '(unknown mail transport error)'
   _wait_for_empty_mail_queue_in_container
@@ -227,32 +193,7 @@ function _successful() {
 }
 
 @test "redirects mail to external aliases" {
-  _service_log_should_contain_string 'mail' 'Passed CLEAN {RelayedInbound}'
-  run bash -c "grep '<user@external.tld> -> <external1@otherdomain.tld>' <<< '${output}'"
-  _should_output_number_of_lines 2
-  # assert_output --partial 'external.tld=user@example.test> -> <external1@otherdomain.tld>'
-}
-
-# TODO: Add a test covering case SPAMASSASSIN_SPAM_TO_INBOX=1 (default)
-@test "rejects spam" {
-  _service_log_should_contain_string 'mail' 'Blocked SPAM {NoBounceInbound,Quarantined}'
-  assert_output --partial '<spam@external.tld> -> <user1@localhost.localdomain>'
-  _should_output_number_of_lines 1
-
-  # Amavis log line with SPAMASSASSIN_SPAM_TO_INBOX=0 + grep 'Passed SPAM {RelayedTaggedInbound,Quarantined}' /var/log/mail/mail.log:
-  # Amavis log line with SPAMASSASSIN_SPAM_TO_INBOX=1 + grep 'Blocked SPAM {NoBounceInbound,Quarantined}' /var/log/mail/mail.log:
-  # <spam@external.tld> -> <user1@localhost.localdomain>
-  # Amavis log line with ENABLE_SRS=1 changes the domain-part to match in a log:
-  # <SRS0=g+ca=5C=external.tld=spam@example.test> -> <user1@localhost.localdomain>
-  # assert_output --partial 'external.tld=spam@example.test> -> <user1@localhost.localdomain>'
-}
-
-@test "SA - All registered domains should receive mail with spam headers (X-Spam)" {
-  _run_in_container grep -ir 'X-Spam-' /var/mail/localhost.localdomain/user1/new
-  assert_success
-
-  _run_in_container grep -ir 'X-Spam-' /var/mail/otherdomain.tld/user2/new
-  assert_success
+  _service_log_should_contain_string 'mail' 'to=<external1@otherdomain.tld>, orig_to=<alias2@localhost.localdomain>'
 }
 
 # Dovecot does not support SMTPUTF8, so while we can send we cannot receive

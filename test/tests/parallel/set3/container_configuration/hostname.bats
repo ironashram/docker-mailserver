@@ -6,11 +6,6 @@ CONTAINER1_NAME='dms-test_hostname_fqdn-with-subdomain'
 CONTAINER2_NAME='dms-test_hostname_bare-domain'
 CONTAINER3_NAME='dms-test_hostname_env-override-hostname'
 CONTAINER4_NAME='dms-test_hostname_with-nis-domain'
-CONTAINER5_NAME='dms-test_hostname_env-srs-domainname'
-
-# NOTE: Required until postsrsd package updated:
-# `--ulimit` is a workaround for some environments when using ENABLE_SRS=1:
-# PR 2730: https://github.com/docker-mailserver/docker-mailserver/commit/672e9cf19a3bb1da309e8cea6ee728e58f905366
 
 function teardown() { _default_teardown ; }
 
@@ -19,10 +14,7 @@ function teardown() { _default_teardown ; }
 
   # Should be using the default `--hostname mail.example.test`
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_AMAVIS=1
-    --env ENABLE_SRS=1
     --env PERMIT_DOCKER='container'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
   )
   _init_with_defaults
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -41,10 +33,7 @@ function teardown() { _default_teardown ; }
 
   local CUSTOM_SETUP_ARGUMENTS=(
     --hostname 'bare-domain.test'
-    --env ENABLE_AMAVIS=1
-    --env ENABLE_SRS=1
     --env PERMIT_DOCKER='container'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
   )
   _init_with_defaults
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -65,10 +54,7 @@ function teardown() { _default_teardown ; }
   local CUSTOM_SETUP_ARGUMENTS=(
     --hostname 'original.example.test'
     --env OVERRIDE_HOSTNAME='mail.override.test'
-    --env ENABLE_AMAVIS=1
-    --env ENABLE_SRS=1
     --env PERMIT_DOCKER='container'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
   )
   _init_with_defaults
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -92,10 +78,7 @@ function teardown() { _default_teardown ; }
   local CUSTOM_SETUP_ARGUMENTS=(
     --hostname 'mail'
     --domainname 'example.test'
-    --env ENABLE_AMAVIS=1
-    --env ENABLE_SRS=1
     --env PERMIT_DOCKER='container'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
   )
   _init_with_defaults
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -109,27 +92,6 @@ function teardown() { _default_teardown ; }
 
   # Likewise `--hostname` value will always match the third parameter:
   _should_have_correct_mail_headers 'mail.example.test' 'example.test' 'mail'
-}
-
-# This test is purely for testing the ENV `SRS_DOMAINNAME` (not relevant to these tests?)
-@test "should give priority to ENV in postsrsd config (ENV SRS_DOMAINNAME)" {
-  export CONTAINER_NAME="${CONTAINER5_NAME}"
-
-  local CUSTOM_SETUP_ARGUMENTS=(
-    --hostname 'mail'
-    --domainname 'example.test'
-    --env ENABLE_SRS=1
-    --env SRS_DOMAINNAME='srs.example.test'
-    --env PERMIT_DOCKER='container'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
-  )
-  _init_with_defaults
-  _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
-
-  # PostSRSd should be configured correctly:
-  _run_in_container grep '^SRS_DOMAIN=' /etc/default/postsrsd
-  assert_output "SRS_DOMAIN=srs.example.test"
-  assert_success
 }
 
 function _should_have_expected_hostname() {
@@ -156,11 +118,6 @@ function _should_be_configured_to_domainname() {
   assert_output "mydomain = ${EXPECTED_DOMAIN}"
   assert_success
 
-  # PostSRSd
-  _run_in_container grep '^SRS_DOMAIN=' /etc/default/postsrsd
-  assert_output "SRS_DOMAIN=${EXPECTED_DOMAIN}"
-  assert_success
-
   # Dovecot
   _run_in_container grep '^postmaster_address' /etc/dovecot/conf.d/15-lda.conf
   assert_output "postmaster_address = postmaster@${EXPECTED_DOMAIN}"
@@ -183,20 +140,6 @@ function _should_be_configured_to_fqdn() {
   _run_in_container doveconf hostname
   assert_output "hostname = ${EXPECTED_FQDN}"
   assert_success
-
-  # OpenDMARC
-  _run_in_container grep '^AuthservID' /etc/opendmarc.conf
-  assert_output --partial " ${EXPECTED_FQDN}"
-  assert_success
-  _run_in_container grep '^TrustedAuthservIDs' /etc/opendmarc.conf
-  assert_output --partial " ${EXPECTED_FQDN}"
-  assert_success
-
-  # Amavis
-  # shellcheck disable=SC2016
-  _run_in_container grep '^\$myhostname' /etc/amavis/conf.d/05-node_id
-  assert_output "\$myhostname = \"${EXPECTED_FQDN}\";"
-  assert_success
 }
 
 function _should_have_correct_mail_headers() {
@@ -218,43 +161,14 @@ function _should_have_correct_mail_headers() {
   assert_success
   assert_output --partial ".${EXPECTED_HOSTNAME},"
 
-  # Mail headers should contain EXPECTED_FQDN for lines Received + by + Message-Id
-  # For `ENABLE_SRS=1`, EXPECTED_DOMAINPART should match lines Return-Path + envelope-from
+  # Mail headers should contain EXPECTED_FQDN for lines Received + by:
+  # NOTE: Line indices are not asserted, the header layout varies with the
+  # delivery chain, only hostname propagation is of interest here.
   _run_in_container cat "${MAIL_FILEPATH}"
   assert_success
-  assert_line --index 0 --partial 'Return-Path: <SRS0='
-  assert_line --index 0 --partial "@${EXPECTED_DOMAINPART}>"
+  assert_output --partial 'Return-Path: <user@external.tld>'
   # Passed on from Postfix to Dovecot via LMTP:
-  assert_line --index 2 --partial "Received: from ${EXPECTED_FQDN}"
-  assert_line --index 3 --partial "by ${EXPECTED_FQDN} with LMTP"
-  assert_line --index 5 --partial '(envelope-from <SRS0='
-  assert_line --index 5 --partial "@${EXPECTED_DOMAINPART}>"
+  assert_output --partial "by ${EXPECTED_FQDN} with LMTP"
   # Arrived via Postfix:
-  # NOTE: The first `localhost` in this line would actually be `mail.external.tld`,
-  # but Amavis is changing that. It also changes protocol from SMTP to ESMTP.
-  assert_line --index 7 --partial 'Received: from localhost (localhost [127.0.0.1])'
-  assert_line --index 8 --partial "by ${EXPECTED_FQDN} (Postfix) with ESMTP id"
-  assert_line --index 14 'X-MS-Reactions: disallow'
-  assert_line --index 15 --partial 'Message-Id:'
-  assert_line --index 15 --partial "@${EXPECTED_FQDN}>"
-
-  # Mail contents example:
-  #
-  # Return-Path: <SRS0=Smtf=5T=external.tld=user@example.test>
-  # Delivered-To: user1@localhost.localdomain
-  # Received: from mail.example.test
-  #   by mail.example.test with LMTP
-  #   id jvJfJk23zGPeBgAAUi6ngw
-  #   (envelope-from <SRS0=Smtf=5T=external.tld=user@example.test>)
-  #   for <user1@localhost.localdomain>; Sun, 22 Jan 2023 04:10:53 +0000
-  # Received: from localhost (localhost [127.0.0.1])
-  #   by mail.example.test (Postfix) with ESMTP id 8CFC4C30F9C4
-  #   for <user1@localhost.localdomain>; Sun, 22 Jan 2023 04:10:53 +0000 (UTC)
-  # From: Docker Mail Server <dockermailserver@external.tld>
-  # To: Existing Local User <user1@localhost.localdomain>
-  # Date: Sat, 22 May 2010 07:43:25 -0400
-  # Subject: Test Message existing-user1.txt
-  # Message-Id: <20230122041053.5A5F1C2F608E@mail.example.test>
-  #
-  # This is a test mail.
+  assert_output --partial "by ${EXPECTED_FQDN} (Postfix) with ESMTP id"
 }

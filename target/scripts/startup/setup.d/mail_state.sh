@@ -22,22 +22,13 @@ function _setup_save_states() {
   )
 
   # Only consolidate state for services that are enabled
-  # Notably avoids copying over 200MB for the ClamAV database
-  [[ ${ENABLE_AMAVIS}       -eq 1 ]] && SERVICEDIRS+=('lib/amavis')
-  [[ ${ENABLE_CLAMAV}       -eq 1 ]] && SERVICEDIRS+=('lib/clamav')
   [[ ${ENABLE_FAIL2BAN}     -eq 1 ]] && SERVICEDIRS+=('lib/fail2ban')
-  [[ ${ENABLE_FETCHMAIL}    -eq 1 ]] && SERVICEDIRS+=('lib/fetchmail')
-  [[ ${ENABLE_GETMAIL}      -eq 1 ]] && SERVICEDIRS+=('lib/getmail')
-  [[ ${ENABLE_MTA_STS}      -eq 1 ]] && SERVICEDIRS+=('lib/mta-sts')
-  [[ ${ENABLE_POSTGREY}     -eq 1 ]] && SERVICEDIRS+=('lib/postgrey')
   [[ ${ENABLE_RSPAMD}       -eq 1 ]] && SERVICEDIRS+=('lib/rspamd')
   [[ ${ENABLE_RSPAMD_REDIS} -eq 1 ]] && SERVICEDIRS+=('lib/redis')
-  [[ ${ENABLE_SPAMASSASSIN} -eq 1 ]] && SERVICEDIRS+=('lib/spamassassin')
-  [[ ${ENABLE_SRS}          -eq 1 ]] && SERVICEDIRS+=('lib/postsrsd')
   [[ ${SMTP_ONLY}           -ne 1 ]] && SERVICEDIRS+=('lib/dovecot')
 
   # Single service files
-  [[ ${ENABLE_SRS}          -eq 1 ]] && SERVICEFILES+=('/etc/postsrsd.secret')
+  SERVICEFILES=()
 
   for SERVICEFILE in "${SERVICEFILES[@]}"; do
     DEST="${DMS_STATE_DIR}/${SERVICEFILE}"
@@ -106,14 +97,8 @@ function _setup_adjust_state_permissions() {
   # NOTE: More details about users and groups added during image builds are documented here:
   # https://github.com/docker-mailserver/docker-mailserver/pull/3011#issuecomment-1399120252
   _log 'trace' "Ensuring correct ownership + permissions for DMS state dir: '${DMS_STATE_DIR}'"
-  [[ ${ENABLE_AMAVIS}       -eq 1 ]] && chown -R amavis:amavis             "${DMS_STATE_DIR}/lib-amavis"
-  [[ ${ENABLE_CLAMAV}       -eq 1 ]] && chown -R clamav:clamav             "${DMS_STATE_DIR}/lib-clamav"
-  [[ ${ENABLE_FETCHMAIL}    -eq 1 ]] && chown -R fetchmail:nogroup         "${DMS_STATE_DIR}/lib-fetchmail"
-  [[ ${ENABLE_MTA_STS}      -eq 1 ]] && chown -R _mta-sts:_mta-sts         "${DMS_STATE_DIR}/lib-mta-sts"
-  [[ ${ENABLE_POSTGREY}     -eq 1 ]] && chown -R postgrey:postgrey         "${DMS_STATE_DIR}/lib-postgrey"
   [[ ${ENABLE_RSPAMD}       -eq 1 ]] && chown -R _rspamd:_rspamd           "${DMS_STATE_DIR}/lib-rspamd"
   [[ ${ENABLE_RSPAMD_REDIS} -eq 1 ]] && chown -R redis:redis               "${DMS_STATE_DIR}/lib-redis"
-  [[ ${ENABLE_SPAMASSASSIN} -eq 1 ]] && chown -R debian-spamd:debian-spamd "${DMS_STATE_DIR}/lib-spamassassin"
 
   chown -R root:root "${DMS_STATE_DIR}/lib-logrotate"
   chown -R postfix:postfix "${DMS_STATE_DIR}/lib-postfix"

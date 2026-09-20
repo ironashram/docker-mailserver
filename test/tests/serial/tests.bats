@@ -15,16 +15,12 @@ function setup_file() {
   mv "${TEST_TMP_CONFIG}/user-patches/user-patches.sh" "${TEST_TMP_CONFIG}/user-patches.sh"
 
   local CONTAINER_ARGS_ENV_CUSTOM=(
-    --env ENABLE_AMAVIS=1
-    --env AMAVIS_LOGLEVEL=2
-    --env ENABLE_SRS=1
     --env PERMIT_DOCKER=host
     --env PFLOGSUMM_TRIGGER=logrotate
     --env REPORT_RECIPIENT=user1@localhost.localdomain
     --env REPORT_SENDER=report1@mail.example.test
     --env SPOOF_PROTECTION=1
     --env SSL_TYPE='snakeoil'
-    --ulimit "nofile=$(ulimit -Sn):$(ulimit -Hn)"
     --health-cmd "ss --listening --ipv4 --tcp | grep --silent ':smtp' || exit 1"
   )
   _common_container_setup 'CONTAINER_ARGS_ENV_CUSTOM'
@@ -125,62 +121,8 @@ function teardown_file() { _default_teardown ; }
 }
 
 #
-# postsrsd
-#
-
-@test "SRS: main.cf entries" {
-  _run_in_container grep "sender_canonical_maps = tcp:localhost:10001" /etc/postfix/main.cf
-  assert_success
-  _run_in_container grep "sender_canonical_classes = envelope_sender" /etc/postfix/main.cf
-  assert_success
-  _run_in_container grep "recipient_canonical_maps = tcp:localhost:10002" /etc/postfix/main.cf
-  assert_success
-  _run_in_container grep "recipient_canonical_classes = envelope_recipient,header_recipient" /etc/postfix/main.cf
-  assert_success
-}
-
-@test "SRS: fallback to hostname is handled correctly" {
-  _run_in_container grep "SRS_DOMAIN=example.test" /etc/default/postsrsd
-  assert_success
-}
-
-#
 # system
 #
-
-@test "system: freshclam cron is disabled" {
-  _run_in_container_bash "grep '/usr/bin/freshclam' -r /etc/cron.d"
-  assert_failure
-}
-
-@test "amavis: virusmail wiper cron exists" {
-  _run_in_container_bash "crontab -l | grep '/usr/local/bin/virus-wiper'"
-  assert_success
-}
-
-@test "amavis: VIRUSMAILS_DELETE_DELAY override works as expected" {
-  # shellcheck disable=SC2016
-  run docker run --rm -e VIRUSMAILS_DELETE_DELAY=2 "${IMAGE_NAME:?}" /bin/bash -c 'echo "${VIRUSMAILS_DELETE_DELAY}"'
-  assert_output 2
-}
-
-@test "amavis: old virusmail is wipped by cron" {
-  # shellcheck disable=SC2016
-  _exec_in_container_bash 'touch -d "`date --date=2000-01-01`" /var/lib/amavis/virusmails/should-be-deleted'
-  _run_in_container_bash '/usr/local/bin/virus-wiper'
-  assert_success
-  _run_in_container_bash 'ls -la /var/lib/amavis/virusmails/ | grep should-be-deleted'
-  assert_failure
-}
-
-@test "amavis: recent virusmail is not wipped by cron" {
-  # shellcheck disable=SC2016
-  _exec_in_container_bash 'touch -d "`date`"  /var/lib/amavis/virusmails/should-not-be-deleted'
-  _run_in_container_bash '/usr/local/bin/virus-wiper'
-  assert_success
-  _run_in_container_bash 'ls -la /var/lib/amavis/virusmails/ | grep should-not-be-deleted'
-  assert_success
-}
 
 # TODO: Remove in favor of a common helper method, as described in vmail-id.bats equivalent test-case
 @test "system: Mail log is error free" {
@@ -204,41 +146,6 @@ function teardown_file() { _default_teardown ; }
   assert_failure
 }
 
-@test "system: amavis decoders installed and available" {
-  _service_log_should_contain_string_regexp 'mail' '.*(Internal decoder|Found decoder) for\s+\..*'
-  run bash -c "grep -Eo '(mail|Z|gz|bz2|xz|lzma|lrz|lzo|lz4|rpm|cpio|tar|deb|rar|arj|arc|zoo|doc|cab|tnef|zip|kmz|7z|jar|swf|lha|iso|exe)' <<< '${output}' | sort | uniq"
-  assert_success
-  # Support for doc and zoo removed in buster
-  cat <<'EOF' | assert_output
-7z
-Z
-arc
-arj
-bz2
-cab
-cpio
-deb
-exe
-gz
-iso
-jar
-kmz
-lha
-lrz
-lz4
-lzma
-lzo
-mail
-rar
-rpm
-swf
-tar
-tnef
-xz
-zip
-EOF
-}
-
 #
 # PERMIT_DOCKER mynetworks
 #
@@ -251,16 +158,6 @@ EOF
 @test "PERMIT_DOCKER: my network value" {
   _run_in_container_bash "postconf | grep '^mynetworks =' | egrep '[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.0\.0/16'"
   assert_success
-}
-
-#
-# amavis
-#
-
-@test "amavis: config overrides" {
-  _run_in_container_bash "grep -c 'Test Verification' /etc/amavis/conf.d/50-user"
-  assert_success
-  assert_output 1
 }
 
 # TODO investigate why this test fails

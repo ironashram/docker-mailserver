@@ -1,70 +1,41 @@
 # Docker Mailserver (ironashram fork)
 
-[![ci::status]][ci::github] [![documentation::badge]][documentation::web]
+[![ci::status]][ci::github]
 
 [ci::status]: https://img.shields.io/github/actions/workflow/status/ironashram/docker-mailserver/default_on_push.yml?branch=master&color=blue&label=CI&logo=github&logoColor=white&style=for-the-badge
 [ci::github]: https://github.com/ironashram/docker-mailserver/actions
-[documentation::badge]: https://img.shields.io/badge/DOCUMENTATION-GH%20PAGES-0078D4?style=for-the-badge&logo=googledocs&logoColor=white
-[documentation::web]: https://docker-mailserver.github.io/docker-mailserver/latest/
 
-This is a hard fork of
-[docker-mailserver/docker-mailserver](https://github.com/docker-mailserver/docker-mailserver).
-It has diverged deliberately and no longer tracks upstream. Reasons:
+Hard fork of
+[docker-mailserver/docker-mailserver](https://github.com/docker-mailserver/docker-mailserver),
+diverged deliberately and no longer tracking upstream. It is stripped down to the
+feature subset the maintainer actually runs, on a Debian 13 (trixie) base with
+Dovecot 2.4.
 
-- Upstream's release cadence stalled (last release August 2025) while the base image
-  stayed on Debian 12, which left regular security support in July 2026.
-- This fork merged upstream's completed but unmerged Debian 13 + Dovecot 2.4 migration
-  branch (upstream PR #4536) and builds on trixie.
-- Images publish to `ghcr.io/ironashram/docker-mailserver` (`:edge`), amd64 only.
-  A weekly scheduled rebuild pulls current Debian packages, and publishing is gated on
-  the full test suite passing.
-- CI is self-contained: local reusable workflows, all actions pinned by commit SHA,
-  no DockerHub publishing, docs deploy and stale bot workflows removed.
-- Maintained for personal infrastructure. Features beyond what the maintainer runs
-  are still present but untested here - upstream's documentation still describes them.
+## What is inside
 
-## :page_with_curl: About
+- Postfix (SMTP, submission, submissions) with postscreen and spoof protection
+- Dovecot (IMAP, LMTP, Sieve, optional ManageSieve)
+- Rspamd (with optional embedded Redis) for spam filtering and DKIM signing
+- Fail2Ban
+- File-based account provisioning and the `setup` CLI
+- TLS via provided certificates (`SSL_TYPE`), logrotate, logwatch, pflogsumm
+- Release update check against this repository's releases
 
-A production-ready fullstack but simple containerized mail server (SMTP, IMAP, LDAP, Anti-spam, Anti-virus, etc.).
-- Only configuration files, no SQL database. Keep it simple and versioned. Easy to deploy and upgrade.
-- Originally created by [@tomav](https://github.com/tomav), this project is now maintained by volunteers since January 2021.
+## What was removed from upstream
 
-## <!-- Adds a thin line break separator style -->
+ClamAV, Amavis, SpamAssassin, Postgrey, PostSRSd, OpenDKIM, OpenDMARC,
+policyd-spf, MTA-STS, Fetchmail, Getmail, LDAP, OAuth2, SASLAuthd, POP3, FTS,
+and the upstream docs/demo tooling. If you need any of that, use
+[upstream](https://github.com/docker-mailserver/docker-mailserver) instead.
 
-> [!TIP]
-> Be sure to read [our documentation][documentation::web]. It provides guidance on initial setup of your mail server.
+## Images
 
-> [!IMPORTANT]
-> If you have issues, please search through [the documentation][documentation::web] **for your version** before opening an issue.
-> 
-> The issue tracker is for issues, not for personal support.  
-> Make sure the version of the documentation matches the image version you're using!
+Published to `ghcr.io/ironashram/docker-mailserver` (amd64 only):
 
-## :link: Links to Useful Resources
+- `:edge` - weekly scheduled rebuild on current Debian packages, publish gated
+  on the full test suite passing
+- Release tags use a year-based scheme (`v26.0.0` = first release of 2026),
+  unrelated to upstream's versioning
 
-1. [FAQ](https://docker-mailserver.github.io/docker-mailserver/latest/faq/)
-2. [Usage](https://docker-mailserver.github.io/docker-mailserver/latest/usage/)
-3. [Examples](https://docker-mailserver.github.io/docker-mailserver/latest/examples/tutorials/basic-installation/)
-4. [Issues and Contributing](https://docker-mailserver.github.io/docker-mailserver/latest/contributing/issues-and-pull-requests/)
-5. [Release Notes](./CHANGELOG.md)
-6. [Environment Variables](https://docker-mailserver.github.io/docker-mailserver/latest/config/environment/)
-7. [Updating](https://docker-mailserver.github.io/docker-mailserver/latest/faq/#how-do-i-update-dms)
-
-## :package: Included Services
-
-- [Postfix](http://www.postfix.org) with SMTP or LDAP authentication and support for [extension delimiters](https://docker-mailserver.github.io/docker-mailserver/latest/config/account-management/overview/#aliases)
-- [Dovecot](https://www.dovecot.org) with SASL, IMAP, POP3, LDAP, [basic Sieve support](https://docker-mailserver.github.io/docker-mailserver/latest/config/advanced/mail-sieve) and [quotas](https://docker-mailserver.github.io/docker-mailserver/latest/config/account-management/overview/#quotas)
-- [Rspamd](https://rspamd.com/)
-- [Amavis](https://www.amavis.org/)
-- [SpamAssassin](http://spamassassin.apache.org/) supporting custom rules
-- [ClamAV](https://www.clamav.net/) with automatic updates
-- [OpenDKIM](http://www.opendkim.org) & [OpenDMARC](https://github.com/trusteddomainproject/OpenDMARC)
-- [Fail2ban](https://www.fail2ban.org/)
-- [Fetchmail](http://www.fetchmail.info/fetchmail-man.html)
-- [Getmail6](https://getmail6.org/documentation.html)
-- [Postscreen](http://www.postfix.org/POSTSCREEN_README.html)
-- [Postgrey](https://postgrey.schweikert.ch/)
-- Support for [LetsEncrypt](https://letsencrypt.org/), manual and self-signed certificates
-- A [setup script](https://docker-mailserver.github.io/docker-mailserver/latest/config/setup.sh) for easy configuration and maintenance
-- SASLauthd with LDAP authentication
-- OAuth2 authentication (_via `XOAUTH2` or `OAUTHBEARER` SASL mechanisms_)
+[Upstream's documentation](https://docker-mailserver.github.io/docker-mailserver/latest/)
+still applies to the retained features and their environment variables.

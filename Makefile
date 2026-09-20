@@ -38,13 +38,7 @@ run-local-instance: ALWAYS_RUN
 		--env OVERRIDE_HOSTNAME=mail.example.test \
 		--env POSTFIX_INET_PROTOCOLS=ipv4 \
 		--env DOVECOT_INET_PROTOCOLS=ipv4 \
-		--env ENABLE_CLAMAV=0 \
-		--env ENABLE_AMAVIS=0 \
 		--env ENABLE_RSPAMD=0 \
-		--env ENABLE_OPENDKIM=0 \
-		--env ENABLE_OPENDMARC=0 \
-		--env ENABLE_POLICYD_SPF=0 \
-		--env ENABLE_SPAMASSASSIN=0 \
 		--env LOG_LEVEL=trace \
 		$(IMAGE_NAME)
 

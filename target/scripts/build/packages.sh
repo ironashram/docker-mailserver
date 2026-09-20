@@ -27,20 +27,13 @@ function _pre_installation_steps() {
   local EARLY_PACKAGES=(
     # Avoid logging unnecessary warnings:
     apt-utils
-    # Required to ensure correct `clamav` ownership (for associated COPY in Dockerfile):
     adduser
     # Required to support adding third-party repos (/etc/apt/sources.list.d) as alternative package sources (eg: Dovecot CE and Rspamd):
     apt-transport-https ca-certificates curl gnupg
-    # Avoid problems with SA / Amavis (https://github.com/docker-mailserver/docker-mailserver/pull/3403#pullrequestreview-1596689953):
     systemd-standalone-sysusers
   )
 
   apt-get "${QUIET}" install --no-install-recommends "${EARLY_PACKAGES[@]}" 2>/dev/null
-
-  # Ensure ownership is assigned to the `clamav` user/group (sync to the UID 200 ownership from the COPY instruction in the Dockerfile):
-  # When the `clamav` package is later installed it will use this UID instead (otherwise value assigned would vary when modifying the package list).
-  # https://github.com/docker-mailserver/docker-mailserver/issues/2942#issuecomment-1383512079
-  adduser --quiet --system --group --disabled-password --home /var/lib/clamav --no-create-home --uid 200 clamav
 }
 
 # Install third-party commands to /usr/local/bin
@@ -92,27 +85,11 @@ function _install_utils() {
 function _install_packages() {
   _log 'debug' 'Installing all packages now'
 
-  local ANTI_VIRUS_SPAM_PACKAGES=(
-    clamav clamav-daemon
-    # spamassassin is used only with amavisd-new
-    amavisd-new spamassassin
-  )
-
-  # predominantly for Amavis support
-  local CODECS_PACKAGES=(
-    altermime arj bzip2
-    cabextract cpio file
-    gzip lhasa lz4
-    lrzip lzop nomarch
-    p7zip-full pax rpm2cpio
-    unrar-free unzip xz-utils
-  )
-
   local MISCELLANEOUS_PACKAGES=(
     binutils bsd-mailx
-    dbconfig-no-thanks dumb-init iproute2
-    libdate-manip-perl libldap-common libmail-spf-perl libnet-dns-perl
-    locales logwatch netcat-openbsd
+    dumb-init iproute2
+    libdate-manip-perl
+    locales logrotate logwatch netcat-openbsd
     nftables # primarily for Fail2Ban
     rsyslog supervisor
     uuid # used for file-locking
@@ -120,19 +97,7 @@ function _install_packages() {
   )
 
   local POSTFIX_PACKAGES=(
-    pflogsumm postgrey postfix postfix-ldap postfix-mta-sts-resolver
-    postfix-pcre postfix-policyd-spf-python postsrsd
-  )
-
-  local MAIL_PROGRAMS_PACKAGES=(
-    opendkim opendkim-tools
-    opendmarc libsasl2-modules sasl2-bin
-  )
-
-  # These packages support community contributed features.
-  # If they cause too much maintenance burden in future, they are liable for removal.
-  local COMMUNITY_PACKAGES=(
-    fetchmail getmail6
+    pflogsumm postfix postfix-pcre
   )
 
   # `bind9-dnsutils` provides the `dig` command
@@ -142,24 +107,17 @@ function _install_packages() {
   )
 
   apt-get "${QUIET}" install --no-install-recommends \
-    "${ANTI_VIRUS_SPAM_PACKAGES[@]}" \
-    "${CODECS_PACKAGES[@]}" \
     "${MISCELLANEOUS_PACKAGES[@]}" \
     "${POSTFIX_PACKAGES[@]}" \
-    "${MAIL_PROGRAMS_PACKAGES[@]}" \
-    "${DEBUG_PACKAGES[@]}" \
-    "${COMMUNITY_PACKAGES[@]}"
+    "${DEBUG_PACKAGES[@]}"
 }
 
 function _install_dovecot() {
   local DOVECOT_PACKAGES=(
     dovecot-core dovecot-imapd
-    dovecot-ldap dovecot-lmtpd dovecot-managesieved
-    dovecot-pop3d dovecot-sieve
+    dovecot-lmtpd dovecot-managesieved
+    dovecot-sieve
   )
-
-  # Additional Dovecot packages for supporting the DMS community (docs-only guide contributions).
-  DOVECOT_PACKAGES+=(dovecot-auth-lua)
 
   # (Opt-in via ENV) Change repo source for dovecot packages to a third-party repo maintained by Dovecot.
   # NOTE: Arch restriction required because AMD64 / x86_64 is the only arch supported from the Dovecot CE repo.
@@ -180,9 +138,6 @@ EOF
     # Refresh package index:
     apt-get "${QUIET}" update
 
-    # This repo instead provides `dovecot-auth-lua` as a transitional package to `dovecot-lua`,
-    # thus this extra package is required to retain lua support:
-    DOVECOT_PACKAGES+=(dovecot-lua)
   fi
 
   _log 'debug' 'Installing Dovecot'
@@ -249,9 +204,6 @@ function _install_fail2ban() {
 
 function _post_installation_steps() {
   _log 'debug' 'Running post-installation steps (cleanup)'
-  _log 'debug' 'Deleting sensitive files (secrets)'
-  rm /etc/postsrsd.secret
-
   _log 'debug' 'Deleting default logwatch cronjob'
   rm /etc/cron.daily/00logwatch
 

@@ -238,16 +238,10 @@ function teardown_file() { _default_teardown ; }
 @test "config dkim (help correctly displayed)" {
   run ./setup.sh -c "${CONTAINER_NAME}" config dkim help
   assert_success
-  assert_line --index 3 --partial "open-dkim - Configure DKIM (DomainKeys Identified Mail)"
+  assert_line --index 3 --partial "rspamd-dkim - Configure DKIM (DomainKeys Identified Mail)"
 }
 
 # debug
-
-@test "debug fetchmail" {
-  run ./setup.sh -c "${CONTAINER_NAME}" debug fetchmail
-  assert_failure
-  assert_output --partial "fetchmail: normal termination, status 11"
-}
 
 @test "debug login ls" {
   run ./setup.sh -c "${CONTAINER_NAME}" debug login ls

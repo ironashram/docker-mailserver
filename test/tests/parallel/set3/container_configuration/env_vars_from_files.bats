@@ -24,7 +24,7 @@ function setup_file() {
   FILE_WITH_VALUE=${TEST_TMP_CONFIG}/test_secret
   echo 1 > "${FILE_WITH_VALUE}"
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_POP3__FILE="${FILEPATH_VALID}"
+    --env ENABLE_MANAGESIEVE__FILE="${FILEPATH_VALID}"
     -v "${FILE_WITH_VALUE}:${FILEPATH_VALID}"
   )
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -35,8 +35,8 @@ function setup_file() {
   FILE_WITH_VALUE=${TEST_TMP_CONFIG}/test_secret
   echo 1 > "${FILE_WITH_VALUE}"
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_POP3="0"
-    --env ENABLE_POP3__FILE="${FILEPATH_VALID}"
+    --env ENABLE_MANAGESIEVE="0"
+    --env ENABLE_MANAGESIEVE__FILE="${FILEPATH_VALID}"
     -v "${FILE_WITH_VALUE}:${FILEPATH_VALID}"
   )
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
@@ -45,7 +45,7 @@ function setup_file() {
   CONTAINER_NAME=${CONTAINER3_NAME}
   _init_with_defaults
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_POP3__FILE="${FILEPATH_INVALID}"
+    --env ENABLE_MANAGESIEVE__FILE="${FILEPATH_INVALID}"
   )
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
 }
@@ -61,12 +61,11 @@ function teardown_file() {
   # Relevant log content only available via docker logs:
   run docker logs "${CONTAINER_NAME}"
   assert_success
-  assert_line --partial "Getting secret 'ENABLE_POP3' from '${FILEPATH_VALID}'"
+  assert_line --partial "Getting secret 'ENABLE_MANAGESIEVE' from '${FILEPATH_VALID}'"
 
-  # Verify ENABLE_POP3 was enabled (disabled by default), by checking this file path is valid:
-  _run_in_container doveconf protocols
+  # Verify ENABLE_MANAGESIEVE was enabled (disabled by default), by checking the exported settings:
+  _run_in_container grep "ENABLE_MANAGESIEVE='1'" /etc/dms-settings
   assert_success
-  assert_line --partial 'pop3'
 }
 
 @test "Non-empty ENV have precedence over their __FILE variant" {
@@ -76,7 +75,7 @@ function teardown_file() {
   # Relevant log content only available via docker logs:
   run docker logs "${CONTAINER_NAME}"
   assert_success
-  assert_line --partial "ENV value will not be sourced from 'ENABLE_POP3__FILE' since 'ENABLE_POP3' is already set"
+  assert_line --partial "ENV value will not be sourced from 'ENABLE_MANAGESIEVE__FILE' since 'ENABLE_MANAGESIEVE' is already set"
 }
 
 @test "Referencing a non-existent file logs an error" {
@@ -86,5 +85,5 @@ function teardown_file() {
   # Relevant log content only available via docker logs:
   run docker logs "${CONTAINER_NAME}"
   assert_success
-  assert_line --partial "File defined for secret 'ENABLE_POP3' with path '${FILEPATH_INVALID}' does not exist"
+  assert_line --partial "File defined for secret 'ENABLE_MANAGESIEVE' with path '${FILEPATH_INVALID}' does not exist"
 }

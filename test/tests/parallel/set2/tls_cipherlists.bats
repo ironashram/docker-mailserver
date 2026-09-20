@@ -86,7 +86,6 @@ function _configure_and_run_dms_container() {
     --volume "${TLS_CONFIG_VOLUME}"
     --network "${TEST_NETWORK}"
     --network-alias "${TEST_DOMAIN}"
-    --env ENABLE_POP3=1
     --env SSL_TYPE="manual"
   )
 
@@ -132,10 +131,6 @@ function _verify_cipherlists() {
   # IMAP: Mandatory STARTTLS Explicit(143) and Implicit(993) TLS
   check_cipherlists "${RESULTS_PATH}/port_143.json"
   check_cipherlists "${RESULTS_PATH}/port_993.json"
-
-  # POP3: Mandatory STARTTLS Explicit(110) and Implicit(995)
-  check_cipherlists "${RESULTS_PATH}/port_110.json"
-  check_cipherlists "${RESULTS_PATH}/port_995.json"
 }
 
 # Using `testssl.sh` we can test each port to collect a list of supported cipher suites (ordered):

@@ -84,15 +84,9 @@ EOF
 
   esac
 
-  if [[ ${ENABLE_POP3} -eq 1 || ${ENABLE_IMAP} -eq 1 ]]; then
+  if [[ ${ENABLE_IMAP} -eq 1 ]]; then
     sedfile -i -e 's|#ssl = yes|ssl = yes|g' /etc/dovecot/conf.d/10-master.conf
     sedfile -i -e 's|#ssl = yes|ssl = required|g' /etc/dovecot/conf.d/10-ssl.conf
-  fi
-
-  if [[ ${ENABLE_POP3} -eq 1 ]]; then
-    _log 'debug' 'Enabling POP3 services'
-    sedfile -i -E 's|^(protocols =.*)|\1 pop3|' /etc/dovecot/dovecot.conf
-    sedfile -i -e 's|#port = 995|port = 995|g'  /etc/dovecot/conf.d/10-master.conf
   fi
 
   if [[ ${ENABLE_IMAP} -eq 1 ]]; then

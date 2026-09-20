@@ -8,7 +8,6 @@ function setup_file() {
   _init_with_defaults
 
   local CUSTOM_SETUP_ARGUMENTS=(
-    --env ENABLE_AMAVIS=1
     --env ENABLE_MANAGESIEVE=1
     --env PERMIT_DOCKER=host
     --env SSL_TYPE='snakeoil'
@@ -16,8 +15,6 @@ function setup_file() {
 
   _common_container_setup 'CUSTOM_SETUP_ARGUMENTS'
 
-  # Port 10024 (Amavis)
-  _wait_for_tcp_port_in_container 10024
   _wait_for_smtp_port_in_container
 }
 

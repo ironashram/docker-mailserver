@@ -68,17 +68,6 @@ function _vhost_collect_postfix_domains() {
       [[ ${UNAME} != "${DOMAIN}" ]] && echo "${DOMAIN}" >>"${TMP_VHOST}"
     done < <(_get_valid_lines_from_file "${DATABASE_VIRTUAL}")
   fi
-
-  _vhost_ldap_support
-}
-
-# Add DOMAINNAME (not an ENV, set by `helpers/dns.sh`) to vhost.
-# NOTE: `setup-stack.sh:_setup_ldap` has related logic:
-# - `main.cf:mydestination` setting removes `$mydestination` as an LDAP bugfix.
-# - `main.cf:virtual_mailbox_domains` uses `/etc/postfix/vhost`, but may
-#   conditionally include a 2nd table (ldap:/etc/postfix/ldap-domains.cf).
-function _vhost_ldap_support() {
-  [[ ${ACCOUNT_PROVISIONER} == 'LDAP' ]] && echo "${DOMAINNAME}" >>"${TMP_VHOST}"
 }
 
 # Docs - Postfix lookup table files:

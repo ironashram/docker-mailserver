@@ -14,9 +14,6 @@ function setup_file() {
   # https://github.com/docker-mailserver/docker-mailserver/pull/2815/files#r991087509
   local CUSTOM_SETUP_ARGUMENTS=(
     --env ENABLE_RSPAMD=1
-    --env ENABLE_OPENDKIM=0
-    --env ENABLE_OPENDMARC=0
-    --env ENABLE_POLICYD_SPF=0
     --env LOG_LEVEL=trace
     --env OVERRIDE_HOSTNAME="mail.${DOMAIN_NAME}"
   )
