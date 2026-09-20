@@ -290,7 +290,7 @@ EOF
 
     cat >>/etc/dovecot/conf.d/90-sieve.conf <<EOF
 
-sieve_script global_before {
+sieve_script spam_subject {
     type = before
     path = ${DOVECOT_SIEVE_GLOBAL_BEFORE_DIR}/${DOVECOT_SIEVE_FILE}.sieve
 }
@@ -346,7 +346,7 @@ if anyof (header :contains "X-Spam-Flag" "YES",
 }
 EOF
     sievec /usr/lib/dovecot/sieve-global/after/60-spam_mark_as_read.sieve
-    chown dovecot:root /usr/lib/dovecot/sieve-global/after/spam_mark_as_read.{sieve,svbin}
+    chown dovecot:root /usr/lib/dovecot/sieve-global/after/60-spam_mark_as_read.{sieve,svbin}
 
     cat >>/etc/dovecot/conf.d/90-sieve.conf <<"EOF"
 

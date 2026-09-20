@@ -61,12 +61,17 @@ function _create_accounts() {
         echo "${DOVECOT_USERDB_LINE}" >>"${DOVECOT_USERDB_FILE}"
       fi
 
-      mkdir -p "/var/mail/${DOMAIN}/${USER}/home"
+      # Dovecot mail_path is /var/mail/<domain>/<user> (mail_home is .../home).
+      local MAILBOX="/var/mail/${DOMAIN}/${USER}"
+      local MAILBOX_HOME="${MAILBOX}/home"
+      mkdir -p "${MAILBOX_HOME}"
 
       # copy user provided sieve file, if present
       if [[ -e "/tmp/docker-mailserver/${LOGIN}.dovecot.sieve" ]]; then
-        cp "/tmp/docker-mailserver/${LOGIN}.dovecot.sieve" "/var/mail/${DOMAIN}/${USER}/home/.dovecot.sieve"
+        cp "/tmp/docker-mailserver/${LOGIN}.dovecot.sieve" "${MAILBOX_HOME}/.dovecot.sieve"
       fi
+
+      chown -R -- "${DMS_VMAIL_UID}:${DMS_VMAIL_GID}" "${MAILBOX}"
     done < <(_get_valid_lines_from_file "${DATABASE_ACCOUNTS}")
 
     _create_dovecot_alias_dummy_accounts
@@ -144,7 +149,7 @@ function _create_dovecot_alias_dummy_accounts() {
 }
 
 # Support Dovecot master user: https://doc.dovecot.org/configuration_manual/authentication/master_users/
-# Supporting LDAP users requires `auth_bind = yes` in `dovecot-ldap.conf.ext`, see docker-mailserver/docker-mailserver/pull/2535 for details
+# Supporting LDAP users requires `passdb_ldap_bind = yes` in `auth-ldap.conf.ext`, see docker-mailserver/docker-mailserver/pull/2535 for details
 function _create_masters() {
   : >"${DOVECOT_MASTERDB_FILE}"
 
@@ -187,6 +192,10 @@ function _add_attribute_dovecot_quota() {
 
     if [[ ${#USER_QUOTA[@]} -eq 2 ]]; then
       USER_ATTRIBUTES="${USER_ATTRIBUTES:+${USER_ATTRIBUTES} }userdb_quota_storage_size=${USER_QUOTA[1]}"
+      # Dovecot 2.4 quota_storage_grace is a size, not a percentage. Keep the 2.3 10% of this mailbox.
+      if [[ ${USER_QUOTA[1]} =~ ^([1-9][0-9]*)([BkMGT])$ ]]; then
+        USER_ATTRIBUTES+=" userdb_quota_storage_grace=$(( BASH_REMATCH[1] / 10 ))${BASH_REMATCH[2]}"
+      fi
     fi
   fi
 

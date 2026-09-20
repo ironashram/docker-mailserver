@@ -135,6 +135,21 @@ function teardown_file() { _default_teardown ; }
   assert_output --partial 'check_policy_service inet:localhost:65265'
 }
 
+@test 'should defer quota checks for aliases to external addresses' {
+  _run_in_container doveconf -h quota_status_success
+  assert_output 'DUNNO'
+
+  _run_in_container doveconf -h quota_status_nouser
+  assert_output 'DUNNO'
+
+  _run_in_container doveconf -h quota_status_overquota
+  assert_output '552 5.2.2 Mailbox is full'
+
+  _run_in_container_bash "printf '%s\n' 'request=smtpd_access_policy' 'protocol_state=RCPT' 'protocol_name=SMTP' 'recipient=alias2@localhost.localdomain' '' | nc -q 1 127.0.0.1 65265"
+  assert_success
+  assert_output --partial 'action=DUNNO'
+}
+
 @test '(ENV POSTFIX_MAILBOX_SIZE_LIMIT) should be configured for both Postfix and Dovecot' {
   _run_in_container postconf -h mailbox_size_limit
   assert_output 4096000
@@ -205,11 +220,7 @@ function teardown_file() { _default_teardown ; }
   assert_success
 }
 
-# ! Current problem: 2026-02-15T15:10:04.938804+00:00 mail dovecot: lmtp(quotauser@otherdomain.tld)<1751><50XRNczhkWnXBgAAUi6ngw>: Error: quota-count: quota_warning warn-80: execute unix:/run/dovecot/quota-warning: net_connect_unix(/run/dovecot/quota-warning) failed: Permission denied (euid=5000(docker) egid=5000(docker) missing +r perm: /run/dovecot/quota-warning, dir owned by 0:0 mode=0755)
-# TODO needs adjustments in target/dovecot/90-quota.conf
 @test 'should receive a warning mail from Dovecot when quota is exceeded' {
-  skip 'disabled as it does not work currently (quota settings need adjustments)'
-
   # Prepare
   _add_mail_account_then_wait_until_ready 'quotauser@otherdomain.tld'
 
