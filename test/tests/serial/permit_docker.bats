@@ -62,11 +62,6 @@ teardown_file() {
   assert_output --partial "${IPNET1}"
   assert_output --partial "${IPNET2}"
 
-  run docker exec mail_smtponly_second_network /bin/sh -c "postconf smtp_host_lookup=no"
-  assert_success
-
-  _reload_postfix mail_smtponly_second_network
-
   # we should be able to send from the other container on the second network!
   run docker exec mail_smtponly_second_network_sender /bin/sh -c "while read -r LINE; do sleep 0.5s; echo \"\${LINE}\"; done < /tmp/docker-mailserver-test/emails/nc_raw/smtp-only.txt | nc mail_smtponly_second_network 25"
   assert_output --partial "250 2.0.0 Ok: queued as "
@@ -76,11 +71,6 @@ teardown_file() {
 }
 
 @test "checking PERMIT_DOCKER: none" {
-  run docker exec mail_smtponly_force_authentication /bin/sh -c "postconf smtp_host_lookup=no"
-  assert_success
-
-  _reload_postfix mail_smtponly_force_authentication
-
   # the mailserver should require authentication and a protocol error should occur when using TLS
   run docker exec mail_smtponly_force_authentication /bin/sh -c "nc localhost 25 < /tmp/docker-mailserver-test/emails/nc_raw/smtp-only.txt"
   assert_output --partial "550 5.5.1 Protocol error"
