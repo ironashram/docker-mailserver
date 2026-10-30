@@ -6,7 +6,7 @@
 # -o pipefail :: exit on error in pipes
 set -eE -u -o pipefail
 
-VERSION_CODENAME='trixie'
+VERSION_CODENAME='resolute'
 
 # shellcheck source=../helpers/log.sh
 source /usr/local/bin/helpers/log.sh
@@ -40,17 +40,6 @@ function _pre_installation_steps() {
 function _install_utils() {
   local ARCH_A
   ARCH_A=$(uname --machine)
-  # Alternate naming convention support: x86_64 (amd64) / aarch64 (arm64)
-  # https://en.wikipedia.org/wiki/X86-64#Industry_naming_conventions
-  local ARCH_B
-  case "${ARCH_A}" in
-    ( 'x86_64'  ) ARCH_B='amd64' ;;
-    ( 'aarch64' ) ARCH_B='arm64' ;;
-    ( * )
-      _log 'error' "Unsupported arch: '${ARCH_A}'"
-      return 1
-      ;;
-  esac
 
   # TIP: `*.tar.gz` releases tend to forget to reset UID/GID ownership when archiving.
   # When extracting with `tar` as `root` the archived UID/GID is kept, unless using `--no-same-owner`.
@@ -64,13 +53,6 @@ function _install_utils() {
   curl -sSfL -o /usr/local/bin/jaq \
     "https://github.com/01mf02/jaq/releases/download/${JAQ_VERSION}/jaq-${ARCH_A}-unknown-linux-gnu"
   chmod +x /usr/local/bin/jaq
-
-  _log 'trace' 'Installing step'
-  local STEP_CLI_VERSION='0.30.2'
-  curl -sSfL -o /tmp/step-cli.deb \
-    "https://github.com/smallstep/cli/releases/download/v${STEP_CLI_VERSION}/step-cli_${ARCH_B}.deb"
-  dpkg -i /tmp/step-cli.deb
-  rm /tmp/step-cli.deb
 
   _log 'trace' 'Installing swaks'
   # `perl-doc` is required for `swaks --help` to work:
@@ -102,10 +84,9 @@ function _install_packages() {
     pflogsumm postfix postfix-pcre
   )
 
-  # `bind9-dnsutils` provides the `dig` command
   # `iputils-ping` provides the `ping` command
   DEBUG_PACKAGES=(
-    bind9-dnsutils iputils-ping less nano
+    iputils-ping less nano
   )
 
   apt-get "${QUIET}" install --no-install-recommends \
@@ -123,15 +104,15 @@ function _install_dovecot() {
 
   # (Opt-in via ENV) Change repo source for dovecot packages to a third-party repo maintained by Dovecot.
   # NOTE: Arch restriction required because AMD64 / x86_64 is the only arch supported from the Dovecot CE repo.
-  # Repo: https://repo.dovecot.org/ce-2.4-latest/debian/trixie/dists/trixie/main/
-  # Docs: https://repo.dovecot.org/#debian
+  # Repo: https://repo.dovecot.org/ce-2.4-latest/ubuntu/resolute/dists/resolute/main/
+  # Docs: https://repo.dovecot.org/#ubuntu
   if [[ ${DOVECOT_COMMUNITY_REPO:-0} -eq 1 ]] && [[ $(uname --machine) == 'x86_64' ]]; then
     _log 'trace' 'Adding third-party package repository (Dovecot)'
     curl -fsSL https://repo.dovecot.org/DOVECOT-REPO-GPG-2.4 \
       | gpg --dearmor > /usr/share/keyrings/upstream-dovecot.gpg
     cat >/etc/apt/sources.list.d/upstream-dovecot.sources <<EOF
 Types: deb
-URIs: https://repo.dovecot.org/ce-2.4-latest/debian/${VERSION_CODENAME}
+URIs: https://repo.dovecot.org/ce-2.4-latest/ubuntu/${VERSION_CODENAME}
 Suites: ${VERSION_CODENAME}
 Components: main
 Signed-By: /usr/share/keyrings/upstream-dovecot.gpg
@@ -150,7 +131,7 @@ function _install_rspamd() {
   # NOTE: DMS only supports the Rspamd package by using the
   #       third-party repo maintained by Rspamd (AMD64 + ARM64)
   #
-  # REF: https://rspamd.com/apt-stable/dists/trixie/main/
+  # REF: https://rspamd.com/apt-stable/dists/resolute/main/
   #      https://rspamd.com/downloads.html#debian-and-ubuntu-linux
 
   _log 'trace' 'Adding third-party package repository (Rspamd)'
@@ -216,6 +197,8 @@ function _post_installation_steps() {
   # Irrelevant config for DMS:
   # Creating a separate syslog socket was necessary as Debian configured Postfix to run via chroot jail (DMS avoids that intentionally).
   rm /etc/rsyslog.d/postfix.conf
+
+  rm -f /usr/bin/pebble
 }
 
 _pre_installation_steps

@@ -6,7 +6,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG DOVECOT_COMMUNITY_REPO=0
 ARG LOG_LEVEL=trace
 
-FROM docker.io/debian:13-slim AS stage-base
+FROM docker.io/ubuntu:26.04 AS stage-base
 
 ARG DEBIAN_FRONTEND
 ARG DOVECOT_COMMUNITY_REPO
@@ -50,8 +50,6 @@ COPY target/rspamd/local.d/ /etc/rspamd/local.d/
 # -----------------------------------------------
 
 RUN <<EOF
-  # no syslog user in Debian compared to Ubuntu
-  adduser --system syslog
   useradd -u 5000 -d /home/docker -s /bin/bash -p "$(echo docker | openssl passwd -1 -stdin)" docker
 EOF
 
@@ -88,8 +86,9 @@ RUN <<EOF
   sedfile -i -r "/^#?compress/c\compress\ncopytruncate" /etc/logrotate.conf
   mkdir /var/log/mail
   chown syslog:root /var/log/mail
-  sedfile -i -r 's|/var/log/mail|/var/log/mail/mail|g' /etc/rsyslog.conf
-  sedfile -i -r 's|;auth,authpriv.none|;mail.none;mail.error;auth,authpriv.none|g' /etc/rsyslog.conf
+  sedfile -i -r '/^mail\.err\s/d' /etc/rsyslog.d/50-default.conf
+  sedfile -i -r 's|/var/log/mail|/var/log/mail/mail|g' /etc/rsyslog.d/50-default.conf
+  sedfile -i -r 's|;auth,authpriv.none|;mail.none;mail.error;auth,authpriv.none|g' /etc/rsyslog.d/50-default.conf
   sedfile -i -r 's|/var/log/mail|/var/log/mail/mail|g' /etc/logrotate.d/rsyslog
   sedfile -i -r '/\/var\/log\/mail\/mail.log/d' /etc/logrotate.d/rsyslog
   sedfile -i    's|^/var/log/fail2ban.log {$|/var/log/mail/fail2ban.log {|' /etc/logrotate.d/fail2ban
@@ -97,7 +96,7 @@ RUN <<EOF
   sedfile -i -e 's/\(printerror "could not determine current runlevel"\)/#\1/' /usr/sbin/invoke-rc.d
   sedfile -i -e 's/^\(POLICYHELPER=\).*/\1/' /usr/sbin/invoke-rc.d
   # prevent syslog warning about imklog permissions
-  sedfile -i -e 's/^module(load=\"imklog\")/#module(load=\"imklog\")/' /etc/rsyslog.conf
+  sedfile -i -e 's/^module(load="imklog"/#&/' /etc/rsyslog.conf
   # this change is for our alternative process manager rather than part of
   # a fix related to the change preceding it.
   echo -e '\n/usr/bin/supervisorctl signal hup rsyslog >/dev/null' >>/usr/lib/rsyslog/rsyslog-rotate
