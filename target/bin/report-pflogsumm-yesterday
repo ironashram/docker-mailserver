@@ -11,11 +11,11 @@ HOSTNAME=${1}
 RECIPIENT=${2}
 SENDER=${3}
 
-[[ -x /usr/sbin/pflogsumm ]] || _exit_with_error "'/usr/sbin/pflogsumm' not found or executable"
+[[ -x /usr/bin/pflogsumm ]] || _exit_with_error "'/usr/bin/pflogsumm' not found or executable"
 
 # `pflogsumm` expects files in chronological order, while for `-d yesterday`
 # the only relevant log files to process are `mail.log.1` (oldest) and `mail.log`:
-BODY=$(/usr/sbin/pflogsumm --problems_first -d yesterday /var/log/mail/mail.log{.1,})
+BODY=$(/usr/bin/pflogsumm --problems_first -d yesterday /var/log/mail/mail.log{.1,})
 
 sendmail -t <<EOF
 From: ${SENDER}

@@ -7,13 +7,13 @@ HOSTNAME=${1}
 RECIPIENT=${2}
 SENDER=${3}
 
-[[ -x /usr/sbin/pflogsumm ]] || _exit_with_error "'/usr/sbin/pflogsumm' not found or executable"
+[[ -x /usr/bin/pflogsumm ]] || _exit_with_error "'/usr/bin/pflogsumm' not found or executable"
 
 # The case that the mail.log.1 file isn't readable shouldn't
 # actually be possible with logrotate not rotating empty files..
 # But you never know!
 if [[ -r "/var/log/mail/mail.log.1" ]]; then
-  BODY=$(/usr/sbin/pflogsumm /var/log/mail/mail.log.1 --problems-first)
+  BODY=$(/usr/bin/pflogsumm /var/log/mail/mail.log.1 --problems-first)
 else
   BODY="Error: Mail log not readable or not found: /var/log/mail/mail.log.1
 
